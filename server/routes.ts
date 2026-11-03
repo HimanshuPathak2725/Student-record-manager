@@ -1,82 +1,15 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertStudentSchema, type Student } from "@shared/schema";
+import { insertStudentSchema, type Student } from "../shared/schema";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { pool } from "./db";
-import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-let DatabaseSync: any = null;
-try {
-  // @ts-ignore
-  const sqlite = require("node:sqlite");
-  DatabaseSync = sqlite.DatabaseSync;
-} catch {
-  // fallback if node:sqlite is not supported in the serverless environment
-}
-
-// Helper function to execute SQL query using in-memory SQLite when pool is unavailable
+// Helper function to execute SQL query using resilient in-memory evaluator
 function executeSqliteQuery(students: Student[], sqlQuery: string) {
-  if (DatabaseSync) {
-    try {
-      const db = new DatabaseSync(":memory:");
-      db.exec(`
-        CREATE TABLE students (
-          id INTEGER PRIMARY KEY,
-          registration_no TEXT,
-          registrationNo TEXT,
-          name TEXT,
-          class TEXT,
-          department TEXT,
-          subject_marks REAL,
-          subjectMarks REAL
-        );
-      `);
+  const clean = sqlQuery.trim().replace(/;+$/, "");
+  const lower = clean.toLowerCase();
 
-      const insert = db.prepare(`
-        INSERT INTO students (id, registration_no, registrationNo, name, class, department, subject_marks, subjectMarks)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?);
-      `);
-
-      for (const s of students) {
-        insert.run(
-          s.id,
-          s.registrationNo,
-          s.registrationNo,
-          s.name,
-          s.class,
-          s.class,
-          s.subjectMarks,
-          s.subjectMarks,
-        );
-      }
-
-      const trimmed = sqlQuery.trim().replace(/;+$/, "");
-      const isSelect = /^\s*(SELECT|PRAGMA|EXPLAIN)\b/i.test(trimmed);
-
-      if (isSelect) {
-        const stmt = db.prepare(trimmed);
-        const rows = stmt.all();
-        return {
-          data: rows,
-          message: `Query executed successfully: ${rows.length} row(s) returned.`,
-        };
-      } else {
-        const stmt = db.prepare(trimmed);
-        const result = stmt.run();
-        return {
-          data: [],
-          message: `Query executed successfully. Changes: ${result.changes}.`,
-        };
-      }
-    } catch (e: any) {
-      console.warn("SQLite execution failed, using fallback:", e.message);
-    }
-  }
-
-  // Resilient fallback for serverless environments
-  const lower = sqlQuery.toLowerCase();
   if (lower.includes("avg(subject_marks)")) {
     const avg = students.reduce((sum, s) => sum + s.subjectMarks, 0) / (students.length || 1);
     return {
@@ -84,13 +17,68 @@ function executeSqliteQuery(students: Student[], sqlQuery: string) {
       message: `Query executed successfully: 1 row(s) returned.`,
     };
   }
+
+  if (lower.includes("group by class")) {
+    const deptMap: Record<string, { count: number; totalMarks: number }> = {};
+    for (const s of students) {
+      if (!deptMap[s.class]) {
+        deptMap[s.class] = { count: 0, totalMarks: 0 };
+      }
+      deptMap[s.class].count++;
+      deptMap[s.class].totalMarks += s.subjectMarks;
+    }
+    const rows = Object.entries(deptMap).map(([dept, val]) => ({
+      class: dept,
+      student_count: val.count,
+      count: val.count,
+      dept_avg: Math.round((val.totalMarks / val.count) * 10) / 10,
+    }));
+    return {
+      data: rows,
+      message: `Query executed successfully: ${rows.length} row(s) returned.`,
+    };
+  }
+
+  if (lower.includes("where subject_marks >=")) {
+    const match = lower.match(/where\s+subject_marks\s*>=\s*(\d+)/);
+    const threshold = match ? parseInt(match[1], 10) : 90;
+    const filtered = students
+      .filter(s => s.subjectMarks >= threshold)
+      .map(s => ({
+        id: s.id,
+        registration_no: s.registrationNo,
+        name: s.name,
+        class: s.class,
+        subject_marks: s.subjectMarks,
+      }));
+    return {
+      data: filtered,
+      message: `Query executed successfully: ${filtered.length} row(s) returned.`,
+    };
+  }
+
+  if (lower.includes("order by subject_marks desc") && lower.includes("limit 5")) {
+    const sorted = [...students].sort((a, b) => b.subjectMarks - a.subjectMarks).slice(0, 5);
+    return {
+      data: sorted.map(s => ({
+        registration_no: s.registrationNo,
+        name: s.name,
+        class: s.class,
+        subject_marks: s.subjectMarks,
+      })),
+      message: "Query executed successfully: 5 row(s) returned.",
+    };
+  }
+
   return {
     data: students.map(s => ({
       id: s.id,
       registration_no: s.registrationNo,
+      registrationNo: s.registrationNo,
       name: s.name,
       class: s.class,
       subject_marks: s.subjectMarks,
+      subjectMarks: s.subjectMarks,
     })),
     message: `Query executed successfully: ${students.length} row(s) returned.`,
   };

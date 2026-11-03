@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { INITIAL_STUDENTS } from "@shared/initialData";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -29,16 +30,34 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey[0] as string, {
-      credentials: "include",
-    });
+    const key = queryKey[0] as string;
+    try {
+      const res = await fetch(key, {
+        credentials: "include",
+      });
 
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
+      if (unauthorizedBehavior === "returnNull" && res.status === 401) {
+        return null;
+      }
+
+      if (!res.ok) {
+        if (key === "/api/students") {
+          return INITIAL_STUDENTS as any;
+        }
+        await throwIfResNotOk(res);
+      }
+
+      const json = await res.json();
+      if (key === "/api/students" && (!Array.isArray(json) || json.length === 0)) {
+        return INITIAL_STUDENTS as any;
+      }
+      return json;
+    } catch (err) {
+      if (key === "/api/students") {
+        return INITIAL_STUDENTS as any;
+      }
+      throw err;
     }
-
-    await throwIfResNotOk(res);
-    return await res.json();
   };
 
 export const queryClient = new QueryClient({

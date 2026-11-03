@@ -4,6 +4,7 @@ import { API_ENDPOINTS, fetchStudents, createStudent, updateStudent, deleteStude
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Student, InsertStudent } from "@shared/schema";
+import { INITIAL_STUDENTS } from "@shared/initialData";
 import { useToast } from "@/hooks/use-toast";
 import StudentTable from "@/components/studentTable";
 import StudentForm from "@/components/studentForm";
@@ -35,9 +36,10 @@ export default function Students() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   
   // Queries
-  const { data: students = [], isLoading } = useQuery<Student[]>({
+  const { data: students = (INITIAL_STUDENTS as Student[]), isLoading } = useQuery<Student[]>({
     queryKey: [API_ENDPOINTS.STUDENTS],
-    queryFn: fetchStudents
+    queryFn: fetchStudents,
+    initialData: INITIAL_STUDENTS as Student[],
   });
   
   // Mutations

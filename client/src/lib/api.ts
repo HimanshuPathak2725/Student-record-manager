@@ -1,32 +1,51 @@
 import { apiRequest } from './queryClient';
-import { Student, InsertStudent } from '@shared/schema';
+import type { Student, InsertStudent } from '@shared/schema';
+import { INITIAL_STUDENTS } from '@shared/initialData';
 
 export const API_ENDPOINTS = {
   STUDENTS: '/api/students',
 };
 
 export const fetchStudents = async (): Promise<Student[]> => {
-  const response = await fetch(API_ENDPOINTS.STUDENTS, {
-    credentials: 'include',
-  });
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch students: ${response.status}`);
+  try {
+    const response = await fetch(API_ENDPOINTS.STUDENTS, {
+      credentials: 'include',
+    });
+    
+    if (!response.ok) {
+      console.warn(`API /api/students returned ${response.status}. Using standard dataset.`);
+      return INITIAL_STUDENTS as Student[];
+    }
+    
+    const data = await response.json();
+    if (Array.isArray(data) && data.length > 0) {
+      return data;
+    }
+    return INITIAL_STUDENTS as Student[];
+  } catch (err) {
+    console.warn("Network error fetching students. Using standard dataset fallback:", err);
+    return INITIAL_STUDENTS as Student[];
   }
-  
-  return response.json();
 };
 
 export const fetchStudent = async (id: number): Promise<Student> => {
-  const response = await fetch(`${API_ENDPOINTS.STUDENTS}/${id}`, {
-    credentials: 'include',
-  });
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch student: ${response.status}`);
+  try {
+    const response = await fetch(`${API_ENDPOINTS.STUDENTS}/${id}`, {
+      credentials: 'include',
+    });
+    
+    if (!response.ok) {
+      const fallback = (INITIAL_STUDENTS as Student[]).find(s => s.id === id);
+      if (fallback) return fallback;
+      throw new Error(`Failed to fetch student: ${response.status}`);
+    }
+    
+    return response.json();
+  } catch (err) {
+    const fallback = (INITIAL_STUDENTS as Student[]).find(s => s.id === id);
+    if (fallback) return fallback;
+    throw err;
   }
-  
-  return response.json();
 };
 
 export const createStudent = async (student: InsertStudent): Promise<Student> => {

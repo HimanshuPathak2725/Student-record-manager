@@ -1,12 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { API_ENDPOINTS } from "@/lib/api";
 import { Student } from "@shared/schema";
+import { INITIAL_STUDENTS } from "@shared/initialData";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BarChart3, PieChart, GraduationCap } from "lucide-react";
 
 export default function Reports() {
-  const { data: students = [], isLoading } = useQuery<Student[]>({
+  const { data: students = (INITIAL_STUDENTS as Student[]), isLoading } = useQuery<Student[]>({
     queryKey: [API_ENDPOINTS.STUDENTS],
+    initialData: INITIAL_STUDENTS as Student[],
   });
 
   // Department counts

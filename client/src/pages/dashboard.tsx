@@ -21,6 +21,7 @@ import {
   Network
 } from "lucide-react";
 import type { Student } from "@shared/schema";
+import { INITIAL_STUDENTS } from "@shared/initialData";
 import {
   ResponsiveContainer,
   BarChart as RechartsBarChart,
@@ -55,8 +56,9 @@ interface BinarySearchResult {
 }
 
 export default function Dashboard() {
-  const { data: students = [], isLoading } = useQuery<Student[]>({
+  const { data: students = (INITIAL_STUDENTS as Student[]), isLoading } = useQuery<Student[]>({
     queryKey: [API_ENDPOINTS.STUDENTS],
+    initialData: INITIAL_STUDENTS as Student[],
   });
 
   const [searchRoll, setSearchRoll] = useState("112");
