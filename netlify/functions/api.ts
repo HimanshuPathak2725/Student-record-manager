@@ -2,18 +2,28 @@ import express from "express";
 import serverless from "serverless-http";
 import { registerRoutes } from "../../server/routes";
 
-const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+let cachedHandler: any = null;
 
-// Normalize URL path if routed via Netlify Functions
-app.use((req, res, next) => {
-  if (req.url.startsWith("/.netlify/functions/api")) {
-    req.url = req.url.replace("/.netlify/functions/api", "/api");
+async function bootstrap() {
+  const app = express();
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: false }));
+
+  // Normalize URL path if routed via Netlify Functions
+  app.use((req, res, next) => {
+    if (req.url.startsWith("/.netlify/functions/api")) {
+      req.url = req.url.replace("/.netlify/functions/api", "/api");
+    }
+    next();
+  });
+
+  await registerRoutes(app);
+  return serverless(app);
+}
+
+export const handler = async (event: any, context: any) => {
+  if (!cachedHandler) {
+    cachedHandler = await bootstrap();
   }
-  next();
-});
-
-await registerRoutes(app);
-
-export const handler = serverless(app);
+  return cachedHandler(event, context);
+};
