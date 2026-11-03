@@ -16,34 +16,36 @@ export interface Notification {
   show: boolean;
 }
 
-// Class options for the dropdown
+// Class & Department options matching our institutional dataset
 export const CLASS_OPTIONS = [
-  { value: "CS-SE", label: "Computer Science - Second Year" },
-  { value: "CS-TE", label: "Computer Science - Third Year" },
-  { value: "CS-BE", label: "Computer Science - Fourth Year" },
-  { value: "IT-SE", label: "IT - Second Year" },
-  { value: "IT-TE", label: "IT - Third Year" },
-  { value: "IT-BE", label: "IT - Final Year" },
-  { value: "EC-SE", label: "Electronics & Communication - Second Year" },
-  { value: "EC-TE", label: "Electronics & Communication - Third Year" },
-  { value: "EC-BE", label: "Electronics & Communication - Fourth Year" },
+  { value: "Computer Science", label: "Computer Science" },
+  { value: "Information Technology", label: "Information Technology" },
+  { value: "Electronics", label: "Electronics" },
+  { value: "Mechanical", label: "Mechanical" },
+  { value: "Civil", label: "Civil" },
+  { value: "CSE – T3", label: "CSE – T3 (ADGIPS)" },
 ];
 
 // Subject name options
 export const SUBJECT_NAME_OPTIONS = [
-  "Mathematics",
-  "Physics",
-  "Chemistry",
-  "Biology",
-  "Computer Science",
-  "Programming",
-  "Data Structures",
-  "Algorithms",
-  "Database Systems",
+  "Design & Analysis of Algorithms",
+  "Data Structures & Algorithms",
   "Operating Systems",
+  "Database Management Systems",
   "Computer Networks",
-  "Web Development",
-  "Software Engineering",
+  "Machine Learning",
   "Artificial Intelligence",
-  "Machine Learning"
+  "Software Engineering",
+  "Web Technologies",
+  "Signal Processing",
+  "Digital Electronics",
+  "Microprocessors",
+  "Thermodynamics",
+  "Fluid Mechanics",
+  "Structural Analysis",
+  "Mathematics",
+  "Theory of Computation",
+  "Compiler Design",
+  "Cyber Security",
+  "Cloud Computing",
 ];

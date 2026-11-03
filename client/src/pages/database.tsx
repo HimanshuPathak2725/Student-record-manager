@@ -1,10 +1,8 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Database, Play, RefreshCw, Save, Trash2, FileText } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { Database, Play, RefreshCw, Save, FileText, CheckCircle2, AlertCircle } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 
@@ -16,14 +14,14 @@ interface QueryResult {
 
 export default function DatabaseManager() {
   const { toast } = useToast();
-  const [sqlQuery, setSqlQuery] = useState("SELECT * FROM students LIMIT 10;");
+  const [sqlQuery, setSqlQuery] = useState("SELECT AVG(subject_marks) as average_marks FROM students;");
   const [result, setResult] = useState<QueryResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [savedQueries, setSavedQueries] = useState<string[]>([
     "SELECT * FROM students;",
     "SELECT AVG(subject_marks) as average_marks FROM students;",
     "SELECT class, COUNT(*) as student_count FROM students GROUP BY class;",
-    "SELECT * FROM students WHERE subject_marks > 40;"
+    "SELECT * FROM students WHERE subject_marks >= 90;"
   ]);
 
   const runQuery = async () => {
@@ -51,22 +49,24 @@ export default function DatabaseManager() {
       if (response.ok) {
         setResult(data);
         toast({
-          title: "Success",
-          description: "Query executed successfully",
+          title: "Execution Succeeded",
+          description: data.message || "Query executed successfully",
         });
       } else {
-        setResult({ data: [], error: data.message || "Failed to execute query" });
+        const errorMsg = data.error || data.message || "Failed to execute query";
+        setResult({ data: [], error: errorMsg });
         toast({
-          title: "Error",
-          description: data.message || "Failed to execute query",
+          title: "Execution Error",
+          description: errorMsg,
           variant: "destructive",
         });
       }
     } catch (error: any) {
-      setResult({ data: [], error: error.message || "An error occurred" });
+      const errorMsg = error.message || "An unexpected error occurred";
+      setResult({ data: [], error: errorMsg });
       toast({
-        title: "Error",
-        description: error.message || "An error occurred",
+        title: "Execution Error",
+        description: errorMsg,
         variant: "destructive",
       });
     } finally {
@@ -79,8 +79,8 @@ export default function DatabaseManager() {
     if (!savedQueries.includes(sqlQuery)) {
       setSavedQueries([...savedQueries, sqlQuery]);
       toast({
-        title: "Success",
-        description: "Query saved successfully",
+        title: "Saved",
+        description: "Query saved to workspace presets",
       });
     }
   };
@@ -95,185 +95,209 @@ export default function DatabaseManager() {
     setSavedQueries(newQueries);
   };
 
-  const getSampleQueries = () => {
-    return [
-      "INSERT INTO students (registration_no, name, class, subject_marks) VALUES ('T-22-1234', 'New Student', 'Computer Science', 45);",
-      "UPDATE students SET subject_marks = 48 WHERE registration_no = 'T-11-0001';",
-      "DELETE FROM students WHERE id = 7;",
-      "CREATE TABLE notes (id SERIAL PRIMARY KEY, student_id INTEGER REFERENCES students(id), content TEXT, created_at TIMESTAMP DEFAULT NOW());"
-    ];
-  };
-
-  const loadSampleQuery = (query: string) => {
-    setSqlQuery(query);
-  };
+  const sampleQueries = [
+    "SELECT registration_no, name, class, subject_marks FROM students ORDER BY subject_marks DESC LIMIT 5;",
+    "SELECT class, COUNT(*) as count, ROUND(AVG(subject_marks), 2) as dept_avg FROM students GROUP BY class;",
+    "SELECT * FROM students WHERE class = 'Computer Science' AND subject_marks >= 90;",
+    "SELECT MIN(subject_marks) as lowest, MAX(subject_marks) as highest FROM students;"
+  ];
 
   return (
-    <div className="py-6 mx-auto px-4 sm:px-6 md:px-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Database Manager</h1>
-        <p className="mt-1 text-sm text-gray-600">
-          Execute SQL queries directly against your database
+    <div className="py-6 mx-auto px-4 sm:px-6 md:px-8 space-y-6 text-zinc-100 font-sans">
+      <div className="pb-4 border-b border-zinc-800/80">
+        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2 font-sans">
+          <Database className="h-5 w-5 text-zinc-400" />
+          Database Query Terminal
+        </h1>
+        <p className="text-xs text-zinc-400 font-sans mt-0.5">
+          Execute direct SQL operations on in-memory SQLite synchronized with student records
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-lg font-medium">SQL Query</CardTitle>
-              <Database className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <Textarea
-                  value={sqlQuery}
-                  onChange={(e) => setSqlQuery(e.target.value)}
-                  className="min-h-32 font-mono"
-                  placeholder="Enter your SQL query here..."
-                />
-                
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={runQuery} disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                        Running...
-                      </>
-                    ) : (
-                      <>
-                        <Play className="mr-2 h-4 w-4" />
-                        Run Query
-                      </>
-                    )}
-                  </Button>
-                  
-                  <Button variant="outline" onClick={saveQuery}>
-                    <Save className="mr-2 h-4 w-4" />
-                    Save Query
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          {/* Query Editor Box */}
+          <div className="bg-zinc-900/60 border border-zinc-800/80 p-5 rounded-lg shadow-sm space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80">
+              <span className="text-xs font-sans font-semibold text-zinc-400 uppercase tracking-wider">
+                SQL Console
+              </span>
+              <span className="text-[11px] font-mono text-zinc-400 px-2 py-0.5 bg-zinc-950 border border-zinc-800 rounded-md">
+                SQLite 3 Engine Active
+              </span>
+            </div>
 
+            <Textarea
+              value={sqlQuery}
+              onChange={(e) => setSqlQuery(e.target.value)}
+              className="min-h-36 font-mono text-xs bg-zinc-950 border-zinc-700 text-zinc-100 focus:border-white transition-colors rounded-md"
+              placeholder="Enter your SQL query (e.g. SELECT * FROM students;)..."
+            />
+            
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Button 
+                onClick={runQuery} 
+                disabled={isLoading}
+                className="bg-white text-zinc-950 hover:bg-zinc-200 transition-colors text-xs font-sans font-semibold rounded-md h-9 px-4"
+              >
+                {isLoading ? (
+                  <>
+                    <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    Executing...
+                  </>
+                ) : (
+                  <>
+                    <Play className="mr-1.5 h-3.5 w-3.5" />
+                    Execute Query
+                  </>
+                )}
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                onClick={saveQuery}
+                className="border-zinc-700 bg-zinc-950 text-zinc-300 hover:bg-zinc-800 text-xs font-sans rounded-md h-9"
+              >
+                <Save className="mr-1.5 h-3.5 w-3.5" />
+                Save Preset
+              </Button>
+            </div>
+          </div>
+
+          {/* Results Box */}
           {result && (
-            <Card className="mt-6">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-lg font-medium">Query Results</CardTitle>
-                <Badge variant={result.error ? "destructive" : "outline"}>
-                  {result.error ? "Error" : `${result.data.length} rows`}
+            <div className="bg-zinc-900/60 border border-zinc-800/80 p-5 rounded-lg shadow-sm space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80">
+                <span className="text-xs font-sans font-semibold text-zinc-400 uppercase tracking-wider">
+                  Query Results
+                </span>
+                <Badge 
+                  variant="outline" 
+                  className="rounded-md border-zinc-700 font-mono text-xs text-zinc-300"
+                >
+                  {result.error ? "Execution Failed" : `${result.data.length} row(s)`}
                 </Badge>
-              </CardHeader>
-              <CardContent>
-                {result.error ? (
-                  <div className="p-4 bg-red-50 text-red-700 rounded-md">
-                    {result.error}
+              </div>
+
+              {result.error ? (
+                <div className="p-3.5 bg-zinc-950 border border-zinc-700 rounded-md text-zinc-300 font-mono text-xs flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-zinc-400 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="font-bold text-white mb-0.5 font-sans">SQL Execution Error:</div>
+                    <div>{result.error}</div>
                   </div>
-                ) : result.data.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          {Object.keys(result.data[0]).map((key) => (
-                            <TableHead key={key}>{key}</TableHead>
+                </div>
+              ) : result.data.length > 0 ? (
+                <div className="overflow-x-auto border border-zinc-800 rounded-lg">
+                  <Table className="font-mono text-xs">
+                    <TableHeader className="bg-zinc-950 text-zinc-400 uppercase">
+                      <TableRow className="border-zinc-800 hover:bg-transparent">
+                        {Object.keys(result.data[0]).map((key) => (
+                          <TableHead key={key} className="py-2.5 px-3.5 text-zinc-400 font-mono">
+                            {key}
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody className="divide-y divide-zinc-800/70 text-zinc-200">
+                      {result.data.map((row, i) => (
+                        <TableRow key={i} className="hover:bg-zinc-800/40 border-zinc-800">
+                          {Object.values(row).map((value: any, j) => (
+                            <TableCell key={j} className="py-2.5 px-3.5 font-mono">
+                              {value === null ? (
+                                <span className="text-zinc-500 italic">null</span>
+                              ) : typeof value === 'object' ? (
+                                JSON.stringify(value)
+                              ) : (
+                                String(value)
+                              )}
+                            </TableCell>
                           ))}
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {result.data.map((row, i) => (
-                          <TableRow key={i}>
-                            {Object.values(row).map((value: any, j) => (
-                              <TableCell key={j}>
-                                {value === null 
-                                  ? <span className="text-muted-foreground italic">null</span> 
-                                  : typeof value === 'object' 
-                                    ? JSON.stringify(value) 
-                                    : String(value)}
-                              </TableCell>
-                            ))}
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                ) : (
-                  <div className="text-center py-4 text-muted-foreground">
-                    Query completed successfully. No data returned.
-                  </div>
-                )}
-                
-                {result.message && !result.error && (
-                  <div className="mt-4 p-2 bg-green-50 text-green-700 rounded">
-                    {result.message}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-6 text-zinc-500 font-sans text-xs">
+                  Query completed successfully. No matching records returned.
+                </div>
+              )}
+              
+              {result.message && !result.error && (
+                <div className="p-3 bg-zinc-950 border border-zinc-800 rounded-md text-zinc-300 font-mono text-xs flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-zinc-400 shrink-0" />
+                  <span>{result.message}</span>
+                </div>
+              )}
+            </div>
           )}
         </div>
 
-        <div>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-lg font-medium">Saved Queries</CardTitle>
-              <FileText className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {savedQueries.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">No saved queries yet</p>
-              ) : (
-                <ul className="space-y-2">
-                  {savedQueries.map((query, index) => (
-                    <li key={index} className="p-3 bg-gray-50 rounded-md">
-                      <div className="text-sm font-mono truncate">{query}</div>
-                      <div className="mt-2 flex gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => loadQuery(query)}
-                        >
-                          Load
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => deleteQuery(index)}
-                        >
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
+        {/* Saved & Sample Queries */}
+        <div className="space-y-6">
+          <div className="bg-zinc-900/60 border border-zinc-800/80 p-5 rounded-lg shadow-sm space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80">
+              <span className="text-xs font-sans font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                <FileText className="h-4 w-4 text-zinc-400" />
+                Saved Presets
+              </span>
+            </div>
 
-          <Card className="mt-6">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-lg font-medium">Sample Queries</CardTitle>
-              <FileText className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2">
-                {getSampleQueries().map((query, index) => (
-                  <li key={index} className="p-3 bg-gray-50 rounded-md">
-                    <div className="text-sm font-mono truncate">{query}</div>
-                    <div className="mt-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => loadSampleQuery(query)}
+            {savedQueries.length === 0 ? (
+              <p className="text-zinc-500 text-center py-4 text-xs font-sans">No saved queries yet</p>
+            ) : (
+              <div className="space-y-2">
+                {savedQueries.map((query, index) => (
+                  <div key={index} className="p-3 bg-zinc-950 border border-zinc-800/80 rounded-md text-xs font-mono">
+                    <div className="text-zinc-300 font-mono truncate">{query}</div>
+                    <div className="mt-2.5 flex gap-2">
+                      <button 
+                        type="button"
+                        onClick={() => loadQuery(query)}
+                        className="px-2.5 py-1 text-[11px] font-sans border border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-white hover:text-black transition-colors rounded-md"
                       >
                         Load
-                      </Button>
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => deleteQuery(index)}
+                        className="px-2.5 py-1 text-[11px] font-sans border border-zinc-800 text-zinc-500 hover:text-white hover:border-zinc-600 transition-colors rounded-md"
+                      >
+                        Delete
+                      </button>
                     </div>
-                  </li>
+                  </div>
                 ))}
-              </ul>
-            </CardContent>
-          </Card>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-zinc-900/60 border border-zinc-800/80 p-5 rounded-lg shadow-sm space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80">
+              <span className="text-xs font-sans font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Database className="h-4 w-4 text-zinc-400" />
+                Institutional Presets
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {sampleQueries.map((query, index) => (
+                <div key={index} className="p-3 bg-zinc-950/80 border border-zinc-800/80 rounded-md text-xs font-mono">
+                  <div className="text-zinc-400 font-mono text-[11px] truncate">{query}</div>
+                  <div className="mt-2.5">
+                    <button 
+                      type="button"
+                      onClick={() => setSqlQuery(query)}
+                      className="px-2.5 py-1 text-[11px] font-sans border border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-white hover:text-black transition-colors rounded-md"
+                    >
+                      Load Query
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>

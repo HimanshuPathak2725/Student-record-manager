@@ -5,29 +5,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { InsertStudent, Student, Subject } from "@shared/schema";
-import { studentFormSchema, CLASS_OPTIONS } from "@/types/student";
+import { studentFormSchema, CLASS_OPTIONS, SUBJECT_NAME_OPTIONS } from "@/types/student";
 import { DialogTitle } from "@/components/ui/dialog";
-import { PlusCircle, Trash2 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-
-// Subject name options
-const SUBJECT_NAME_OPTIONS = [
-  "Mathematics",
-  "Physics",
-  "Chemistry",
-  "Biology",
-  "Computer Science",
-  "Programming",
-  "Data Structures",
-  "Algorithms",
-  "Database Systems",
-  "Operating Systems",
-  "Computer Networks",
-  "Web Development",
-  "Software Engineering",
-  "Artificial Intelligence",
-  "Machine Learning"
-];
+import { Plus, Trash2 } from "lucide-react";
 
 interface StudentFormProps {
   title: string;
@@ -44,36 +24,17 @@ export default function StudentForm({
   onCancel, 
   isLoading 
 }: StudentFormProps) {
-  // Initialize default subjects (minimum 5)
   const getDefaultSubjects = (existingSubjects?: Subject[]): Subject[] => {
-    if (existingSubjects && existingSubjects.length >= 5) {
+    if (existingSubjects && existingSubjects.length > 0) {
       return existingSubjects;
     }
-    
-    const defaultSubjectNames = [
-      "Mathematics", "Physics", "Chemistry", "Computer Science", "Programming"
+    return [
+      { name: "Design & Analysis of Algorithms", marks: 85 },
+      { name: "Operating Systems", marks: 80 },
+      { name: "Database Systems", marks: 85 },
     ];
-    
-    if (existingSubjects && existingSubjects.length > 0) {
-      // Add additional subjects to reach the minimum of 5
-      const additionalSubjects: Subject[] = [];
-      for (let i = existingSubjects.length; i < 5; i++) {
-        additionalSubjects.push({
-          name: defaultSubjectNames[i] || `Subject-${i+1}`,
-          marks: 0
-        });
-      }
-      return [...existingSubjects, ...additionalSubjects];
-    }
-    
-    // No existing subjects, create 5 default ones
-    return defaultSubjectNames.map((name, index) => ({
-      name,
-      marks: 0
-    }));
   };
 
-  // Initialize form with student data or empty values
   const form = useForm<InsertStudent>({
     resolver: zodResolver(studentFormSchema),
     defaultValues: student ? {
@@ -85,8 +46,8 @@ export default function StudentForm({
     } : {
       registrationNo: "",
       name: "",
-      class: "",
-      subjectMarks: 0,
+      class: "Computer Science",
+      subjectMarks: 85,
       subjects: getDefaultSubjects(),
     },
   });
@@ -96,183 +57,238 @@ export default function StudentForm({
     name: "subjects",
   });
 
-  // Keep the subjectMarks field in sync with the first subject (for backward compatibility)
-  const updateMainSubjectMarks = (index: number, value: number) => {
-    if (index === 0) {
-      form.setValue("subjectMarks", value);
+  const syncAverageMarks = () => {
+    const currentSubjects = form.getValues("subjects") || [];
+    if (currentSubjects.length > 0) {
+      const total = currentSubjects.reduce((sum, s) => sum + (Number(s.marks) || 0), 0);
+      const avg = Math.round(total / currentSubjects.length);
+      form.setValue("subjectMarks", avg);
     }
   };
 
   const addSubject = () => {
-    append({ name: `Subject-${fields.length + 1}`, marks: 0 });
+    append({ 
+      name: SUBJECT_NAME_OPTIONS[fields.length % SUBJECT_NAME_OPTIONS.length] || `Subject-${fields.length + 1}`, 
+      marks: 80 
+    });
+    setTimeout(syncAverageMarks, 50);
   };
   
-  // Ensure we can't remove subjects below the minimum of 5
-  const canRemoveSubject = fields.length > 5;
+  const canRemoveSubject = fields.length > 1;
 
   return (
-    <div>
-      <DialogTitle className="mb-4">{title}</DialogTitle>
+    <div className="text-zinc-100 font-sans">
+      <DialogTitle className="mb-4 text-lg font-bold text-white tracking-tight font-sans">
+        {title}
+      </DialogTitle>
       
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="registrationNo"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Registration Number</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g. T-11-0001" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Full Name</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g. John Doe" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="class"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Class</FormLabel>
-                <Select 
-                  onValueChange={field.onChange} 
-                  defaultValue={field.value || undefined}
-                >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <FormField
+              control={form.control}
+              name="registrationNo"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-sans text-zinc-300">Roll / Reg. No.</FormLabel>
                   <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a class" />
-                    </SelectTrigger>
+                    <Input 
+                      placeholder="e.g. 101 or 14715602724" 
+                      {...field} 
+                      className="bg-zinc-900 border-zinc-700 text-white font-mono text-xs rounded-md h-9"
+                    />
                   </FormControl>
-                  <SelectContent>
-                    {CLASS_OPTIONS.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                  <FormMessage className="text-[11px] text-zinc-400" />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-sans text-zinc-300">Student Name</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="e.g. Aarav Sharma" 
+                      {...field} 
+                      className="bg-zinc-900 border-zinc-700 text-white text-xs rounded-md h-9"
+                    />
+                  </FormControl>
+                  <FormMessage className="text-[11px] text-zinc-400" />
+                </FormItem>
+              )}
+            />
+          </div>
           
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium">Subjects and Marks</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <FormField
+              control={form.control}
+              name="class"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-sans text-zinc-300">Department</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    defaultValue={field.value || undefined}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="bg-zinc-900 border-zinc-700 text-white font-sans text-xs rounded-md h-9">
+                        <SelectValue placeholder="Select Department" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent className="bg-zinc-950 border border-zinc-800 text-white rounded-md">
+                      {CLASS_OPTIONS.map(option => (
+                        <SelectItem key={option.value} value={option.value} className="text-xs font-sans">
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage className="text-[11px] text-zinc-400" />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="subjectMarks"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs font-sans text-zinc-300">Aggregate Marks (0–100)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number"
+                      min={0}
+                      max={100}
+                      {...field}
+                      onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                      className="bg-zinc-900 border-zinc-700 text-white font-mono text-xs rounded-md h-9"
+                    />
+                  </FormControl>
+                  <FormMessage className="text-[11px] text-zinc-400" />
+                </FormItem>
+              )}
+            />
+          </div>
+          
+          <div className="pt-2">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h3 className="text-xs font-sans font-semibold text-white uppercase tracking-wider">
+                  Enrolled Subjects & Scores
+                </h3>
+                <p className="text-[11px] text-zinc-500 font-sans">Scores evaluated on 0 to 100 scale</p>
+              </div>
               <Button 
                 type="button" 
                 variant="outline" 
                 size="sm" 
                 onClick={addSubject}
-                className="flex items-center gap-1"
+                className="flex items-center gap-1 text-[11px] font-sans border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 rounded-md h-7"
               >
-                <PlusCircle className="h-4 w-4" />
+                <Plus className="h-3 w-3" />
                 Add Subject
               </Button>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
               {fields.map((field, index) => (
-                <Card key={field.id} className="border border-border">
-                  <CardContent className="pt-4">
-                    <div className="flex items-start gap-4">
-                      <div className="flex-1">
-                        <FormField
-                          control={form.control}
-                          name={`subjects.${index}.name`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Subject Name</FormLabel>
-                              <Select 
-                                onValueChange={field.onChange} 
-                                defaultValue={field.value || undefined}
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select a subject" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {SUBJECT_NAME_OPTIONS.map(option => (
-                                    <SelectItem key={option} value={option}>
-                                      {option}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      
-                      <div className="flex-1">
-                        <FormField
-                          control={form.control}
-                          name={`subjects.${index}.marks`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Marks (Out of 50)</FormLabel>
+                <div key={field.id} className="border border-zinc-800 p-2.5 bg-zinc-900/60 rounded-md">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <FormField
+                        control={form.control}
+                        name={`subjects.${index}.name`}
+                        render={({ field }) => (
+                          <FormItem className="space-y-0">
+                            <Select 
+                              onValueChange={field.onChange} 
+                              defaultValue={field.value || undefined}
+                            >
                               <FormControl>
-                                <Input 
-                                  type="number"
-                                  min={0}
-                                  max={50}
-                                  {...field}
-                                  onChange={(e) => {
-                                    const value = parseInt(e.target.value) || 0;
-                                    field.onChange(value);
-                                    updateMainSubjectMarks(index, value);
-                                  }}
-                                />
+                                <SelectTrigger className="bg-zinc-950 border-zinc-700 text-white font-sans text-xs rounded-md h-8">
+                                  <SelectValue placeholder="Select subject" />
+                                </SelectTrigger>
                               </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      
-                      {canRemoveSubject && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="mt-6"
-                          onClick={() => remove(index)}
-                          title={fields.length <= 5 ? "Minimum 5 subjects required" : "Remove subject"}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
+                              <SelectContent className="bg-zinc-950 border-zinc-800 text-white rounded-md">
+                                {SUBJECT_NAME_OPTIONS.map(option => (
+                                  <SelectItem key={option} value={option} className="text-xs font-sans">
+                                    {option}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
-                  </CardContent>
-                </Card>
+                    
+                    <div className="w-24">
+                      <FormField
+                        control={form.control}
+                        name={`subjects.${index}.marks`}
+                        render={({ field }) => (
+                          <FormItem className="space-y-0">
+                            <FormControl>
+                              <Input 
+                                type="number"
+                                min={0}
+                                max={100}
+                                placeholder="Marks"
+                                className="bg-zinc-950 border-zinc-700 text-white font-mono text-xs rounded-md h-8"
+                                {...field}
+                                onChange={(e) => {
+                                  const value = parseInt(e.target.value) || 0;
+                                  field.onChange(value);
+                                  syncAverageMarks();
+                                }}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    {canRemoveSubject && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-md shrink-0"
+                        onClick={() => {
+                          remove(index);
+                          setTimeout(syncAverageMarks, 50);
+                        }}
+                        title="Remove subject"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
               ))}
             </div>
           </div>
           
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={onCancel}>
+          <div className="flex justify-end space-x-2 pt-3 border-t border-zinc-800">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onCancel}
+              className="border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 text-xs font-sans rounded-md h-8"
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? "Saving..." : student ? "Update" : "Save"}
+            <Button 
+              type="submit" 
+              disabled={isLoading} 
+              className="bg-white text-zinc-950 hover:bg-zinc-200 text-xs font-sans font-semibold rounded-md h-8 px-4"
+            >
+              {isLoading ? "Saving..." : student ? "Update Record" : "Save Record"}
             </Button>
           </div>
         </form>

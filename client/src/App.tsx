@@ -13,11 +13,11 @@ import Header from "@/components/header";
 
 function Router() {
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-black text-zinc-100">
       <Sidebar />
-      <div className="flex flex-col flex-1 w-0 overflow-hidden">
+      <div className="flex flex-col flex-1 w-0 overflow-hidden bg-black">
         <Header />
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto bg-black/95">
           <Switch>
             <Route path="/" component={Dashboard} />
             <Route path="/students" component={Students} />
